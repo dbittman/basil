@@ -1,0 +1,2 @@
+This is the BASIL-EBI simulator, for testing programs. It loads a binary program with a file-format given by format.txt
+(generated automatically from the assembler).
