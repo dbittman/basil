@@ -225,7 +225,7 @@ int main(int argc, char **argv)
 				very_verbose = 1;
 				break;
 			case 'v':
-				verbose = 0;
+				verbose = 1;
 				break;
 			case 'b':
 				little_endian = 0;
@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 	{
 		uint8_t oc = ((little_endian ? !pc_4 : pc_4) ? (*(pc_8) >> 4) : (*(pc_8))) & 0xF;
 		if(very_verbose)
-			printf("%d %d: %x: %x\n", pc_4, (int)(pc_8 - program), oc, *pc_8);
+			printf("%d: %d %d: %x: %x\n", counter, pc_4, (int)(pc_8 - program), oc, *pc_8);
 		counter++;
 		
 		execute(oc);
