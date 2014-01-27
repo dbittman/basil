@@ -1,0 +1,6 @@
+This contains an example hello world program.
+
+To assemble it, run make (bas must be built first).
+
+To run it, run ../sim/basilsim hello_world
+

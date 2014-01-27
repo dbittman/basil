@@ -43,12 +43,12 @@ int get_opcode(char *code)
 		return -1;
 }
 
-uint8_t convert(char *outname, int line, FILE *out, char *tok)
+uint8_t convert(char *outname, int line, char *tok)
 {
 	errno=0;
 	char *end=0;
 	int conv = strtol(tok, &end, 0);
-	if((end - tok) != strlen(tok)) {
+	if((end - tok) != (int)strlen(tok)) {
 		conv = get_opcode(tok);
 		if(conv == -1)
 			fprintf(stderr, "warning: %s:%d: invalid opcode: %s\n", outname, line, tok);
@@ -86,7 +86,7 @@ int pass4(char *source, char *output, int little_endian)
 		while(tok) {
 			tmp = strchr(tok, ' ');
 			if(tmp) *(tmp++) = 0;
-			uint8_t val = convert(source, i, out, tok);
+			uint8_t val = convert(source, i, tok);
 			if(!(token % 2)) bytebuffer = 0;
 			bytebuffer |= ((little_endian ? !(token%2) : (token%2)) ? (val << 4) : (val));
 			
@@ -129,6 +129,7 @@ int get_label(char *name)
 			return s->pc;
 		s=s->next;
 	}
+	return -1;
 }
 
 int pass3(char *source, char *output)
@@ -145,8 +146,10 @@ int pass3(char *source, char *output)
 	}
 	
 	char buffer[1024];
+	int line=0;
 	while(fgets(buffer, 1024, in))
 	{
+		line++;
 		if(buffer[0] == '\n') continue;
 		char *tmp = strchr(buffer, '\n');
 		*tmp = 0;
@@ -160,8 +163,13 @@ int pass3(char *source, char *output)
 			if((col = strchr(tok, ':'))) {
 				int digit = *(col+1) - '0';
 				*col=0;
-				uint16_t pc = get_label(tok);
-				printf("LABEL: %s: %d -> %d", tok, digit, pc);
+				int __pc = get_label(tok);
+				uint16_t pc = (uint16_t)__pc;
+				if(__pc == -1) {
+					fprintf(stderr, "%s:%d: undefined reference to '%s'\n", source, line, tok);
+					return 1;
+				}
+				//printf("LABEL: %s: %d -> %d", tok, digit, pc);
 				pc = (pc >> (digit * 4)) & 0xF;
 				fprintf(out, "%d", pc);
 			} else
@@ -175,6 +183,7 @@ int pass3(char *source, char *output)
 	
 	fclose(out);
 	fclose(in);
+	return 0;
 }
 
 int pass2(char *source, char *output, char *symfile)
@@ -293,10 +302,10 @@ int pass1(char *source, char *output)
 				/* check if imm is greater than 4 bits */
 				char *end=0;
 				int conv = strtol(imm, &end, 0);
-				printf("push: %d: %d: %d\n", conv, strlen(imm), (end - imm) != strlen(imm));
+				//printf("push: %d: %d: %d\n", conv, strlen(imm), (end - imm) != strlen(imm));
 				if(conv > 15) {
 					push_convert(out, conv);
-				} else if((end - imm) != (strlen(imm))) {
+				} else if((end - imm) != (int)(strlen(imm))) {
 					push_label(out, imm);
 				} else {
 					if(nl) *nl='\n';
@@ -313,26 +322,61 @@ int pass1(char *source, char *output)
 	return 0;
 }
 
+void usage()
+{
+	fprintf(stderr, "bas: usage: bas [-k] <source-file> <binary-file>\n");
+	fprintf(stderr, "assembles an assembly language program directly into a binary file for BASIL\n");
+	fprintf(stderr, "  -k: keep intermediate files\n");
+	exit(0);
+}
+
 int main(int argc, char **argv)
 {
-	char out1[strlen(argv[2]) + 2];
-	strcpy(out1, argv[2]);
+	opterr=0;
+	int c;
+	int keep=0;
+	while((c = getopt(argc, argv, "kh")) != EOF) {
+		switch(c) {
+			case 'k':
+				keep=1;
+				break;
+			case 'h':case '?':
+			default:
+				usage();
+		}
+	}
+	
+	char *infile = argv[optind];
+	char *outfile = argv[optind+1];
+	if(!infile || !outfile) usage();
+	
+	char out1[strlen(outfile) + 2];
+	strcpy(out1, outfile);
 	strcat(out1, ".1");
 	
-	char out2[strlen(argv[2]) + 2];
-	strcpy(out2, argv[2]);
+	char out2[strlen(outfile) + 2];
+	strcpy(out2,outfile);
 	strcat(out2, ".2");
 	
-	char out3[strlen(argv[2]) + 2];
-	strcpy(out3, argv[2]);
+	char out3[strlen(outfile) + 2];
+	strcpy(out3, outfile);
 	strcat(out3, ".3");
 	
-	char outs[strlen(argv[2]) + 2];
-	strcpy(outs, argv[2]);
-	strcat(outs, ".0");
+	char outs[strlen(outfile) + 4];
+	strcpy(outs, outfile);
+	strcat(outs, ".sym");
 	
-	pass1(argv[1], out1);
-	pass2(out1, out2, outs);
-	pass3(out2, out3);
-	pass4(out3, argv[2], 1);
+	if(pass1(infile, out1)) return 1;
+	if(pass2(out1, out2, outs)) return 1;
+	if(pass3(out2, out3)) return 1;
+	if(pass4(out3, outfile, 1)) return 1;
+	
+	if(!keep) {
+		unlink(out1);
+		unlink(out2);
+		unlink(out3);
+		unlink(outs);
+	}
+	
+	return 0;
 }
