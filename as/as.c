@@ -152,7 +152,8 @@ int pass3(char *source, char *output)
 		line++;
 		if(buffer[0] == '\n') continue;
 		char *tmp = strchr(buffer, '\n');
-		*tmp = 0;
+		if(tmp)
+			*tmp = 0;
 		
 		char *tok = buffer;
 		while(tok) {

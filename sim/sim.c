@@ -26,6 +26,8 @@ struct opcode {
 	void (*fn)(uint8_t);
 };
 
+void execute(int code);
+
 void sigint(int s)
 {
 	fprintf(stderr, "\n\ninterrupted (SIGINT): pc = %d\n", counter);
@@ -123,6 +125,10 @@ void op_swap(uint8_t p)
 			underflow();
 		*(sp-1) = *(sp - (param + 1));
 		*(sp - (param + 1)) = elem;
+	} else {
+		/* BASIL 2.0: swap 0 executes the top of the stack */
+		elem = pop();
+		execute(elem);
 	}
 }
 
