@@ -7,6 +7,8 @@
 #include <string.h>
 #include "as.h"
 
+int byte_instructions=0;
+
 int get_opcode(char *code)
 {
 	if(!strcasecmp(code, "push") || !strcasecmp(code, "psh")) {
@@ -87,12 +89,15 @@ int pass4(char *source, char *output, int little_endian)
 			tmp = strchr(tok, ' ');
 			if(tmp) *(tmp++) = 0;
 			uint8_t val = convert(source, i, tok);
-			if(!(token % 2)) bytebuffer = 0;
-			bytebuffer |= ((little_endian ? !(token%2) : (token%2)) ? (val << 4) : (val));
-			
-			if(token % 2)
-				fwrite(&bytebuffer, sizeof(uint8_t), 1, out);
-			
+			if(byte_instructions) {
+				fwrite(&val, sizeof(uint8_t), 1, out);
+			} else {
+				if(!(token % 2)) bytebuffer = 0;
+				bytebuffer |= ((little_endian ? !(token%2) : (token%2)) ? (val << 4) : (val));
+				
+				if(token % 2)
+					fwrite(&bytebuffer, sizeof(uint8_t), 1, out);
+			}
 			token++;
 			tok=tmp;
 		}
@@ -270,6 +275,12 @@ void push_label(FILE *out, char *label)
 				 "or\nor\nor\n", label, label, label, label);
 }
 
+char *find_first_non_whitespace(char *s)
+{
+	while(s && *s && isspace(*s)) s++;
+	return s;
+}
+
 int pass1(char *source, char *output)
 {
 	FILE *in = fopen(source, "r");
@@ -283,10 +294,12 @@ int pass1(char *source, char *output)
 		return 1;
 	}
 	
-	char buffer[1024];
+	char __buffer[1024];
 	int line=0;
-	while(fgets(buffer, 1024, in))
+	char *buffer;
+	while(fgets(__buffer, 1024, in))
 	{
+		buffer = find_first_non_whitespace(__buffer);
 		line++;
 		char *c = strchr(buffer, ';');
 		if(c) *c=0;
@@ -328,6 +341,7 @@ void usage()
 	fprintf(stderr, "bas: usage: bas [-k] <source-file> <binary-file>\n");
 	fprintf(stderr, "assembles an assembly language program directly into a binary file for BASIL\n");
 	fprintf(stderr, "  -k: keep intermediate files\n");
+	fprintf(stderr, "  -b: make each instruction 8 bites long\n");
 	exit(0);
 }
 
@@ -336,10 +350,13 @@ int main(int argc, char **argv)
 	opterr=0;
 	int c;
 	int keep=0;
-	while((c = getopt(argc, argv, "kh")) != EOF) {
+	while((c = getopt(argc, argv, "khb")) != EOF) {
 		switch(c) {
 			case 'k':
 				keep=1;
+				break;
+			case 'b':
+				byte_instructions = 1;
 				break;
 			case 'h':case '?':
 			default:

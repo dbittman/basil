@@ -1,3 +1,4 @@
+; doesn't handle branching yet
 start:
 	get
 	dup

@@ -49,7 +49,8 @@ void overflow()
 uint32_t pop()
 {
 	if(sp == stack) underflow();
-	return *(--sp);
+	uint32_t x = *(--sp);
+	return x;
 }
 
 void push(uint32_t p)
@@ -128,7 +129,7 @@ void op_swap(uint8_t p)
 	} else {
 		/* BASIL 2.0: swap 0 executes the top of the stack */
 		elem = pop();
-		execute(elem);
+		execute(elem & 0xF);
 	}
 }
 
@@ -156,18 +157,28 @@ void op_dup(uint8_t p)
 
 void op_get(uint8_t p)
 {
-	push(getc(stdin));
+	int in = getc(stdin);
+	if(in != EOF) {
+		push((uint32_t)in);
+	}
+	else {
+		fprintf(stderr, "recieved EOF\n");
+		for(;;);
+	}
 }
 
 void op_put(uint8_t p)
 {
-	putc(pop(), stdout);
+	int x = pop();
+	putc(x, stdout);
 }
 
 void op_br(uint8_t p)
 {
-	if(pop())
-		counter = pop();
+	uint32_t test = pop();
+	uint32_t x = pop();
+	if(test)
+		counter = x;
 }
 
 struct opcode optable[16] = {
@@ -192,6 +203,7 @@ struct opcode optable[16] = {
 void execute(int code)
 {
 	static int waiting_for_push_operand = 0;
+	//fprintf(stderr, "execute (pc=%d, %d): %x\n", counter, waiting_for_push_operand, code);
 	if(waiting_for_push_operand)
 	{
 		waiting_for_push_operand = 0;
