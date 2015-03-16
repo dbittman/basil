@@ -1,4 +1,4 @@
-CFLAGS=-Wall -Wextra -std=gnu99 -O0 -g
+CFLAGS=-Wall -Wextra -std=gnu99 -O0
 all: bas
 
 bas: as.o

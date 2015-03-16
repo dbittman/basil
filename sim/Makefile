@@ -1,4 +1,4 @@
-CFLAGS=-std=gnu99 -Wall -Wextra -Wno-unused-parameter -Og -g
+CFLAGS=-std=gnu99 -Wall -Wextra -Wno-unused-parameter -g
 all: basilsim
 
 basilsim: sim.o
@@ -8,3 +8,4 @@ sim.o: sim.c
 
 clean:
 	-rm *.o basilsim
+

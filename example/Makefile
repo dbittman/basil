@@ -3,3 +3,4 @@ hello_world: hello_world.s
 
 clean:
 	-rm hello_world
+
